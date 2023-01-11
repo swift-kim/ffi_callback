@@ -1,0 +1,15 @@
+name: ffi_callback_example
+description: Demonstrates how to use the ffi_callback plugin.
+publish_to: "none"
+
+environment:
+  sdk: ">=2.18.4 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi_callback:
+    path: ../
+
+flutter:
+  uses-material-design: true

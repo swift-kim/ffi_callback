@@ -1,0 +1,18 @@
+name: ffi_callback
+description: A new Flutter plugin project.
+publish_to: "none"
+
+environment:
+  sdk: ">=2.18.4 <3.0.0"
+  flutter: ">=2.5.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      tizen:
+        pluginClass: FfiCallbackPlugin
+        fileName: ffi_callback_plugin.h
