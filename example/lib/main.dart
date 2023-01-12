@@ -21,32 +21,29 @@ Future<void> main() async {
       int Function(Pointer<Void>)>('InitDartApiDL');
   initializeApi(NativeApi.initializeApiDLData);
 
-  final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
+  final interactiveCppRequests = ReceivePort()..listen(handleCppRequests);
   final int nativePort = interactiveCppRequests.sendPort.nativePort;
-  registerCallback(nativePort);
+  registerSendPort(nativePort);
 }
 
-void requestExecuteCallback(dynamic message) {
-  print('Calling into C to execute callback.');
+void handleCppRequests(dynamic message) {
+  print('Sending a request.');
   http.get(Uri.parse('https://www.google.com')).then((response) {
     // Adding some additional delay.
-    Future.delayed(Duration(seconds: 2), () {
+    Future.delayed(Duration(seconds: 5), () {
+      print('Received a response.');
       int result = response.body.length;
-
-      print('Calling into C to execute callback.');
-      executeCallback(result);
-      print('Done with callback.');
+      sendReply(result);
     });
   });
 }
 
 final dl = DynamicLibrary.process();
 
-final registerCallback = dl.lookupFunction<Void Function(Int64 sendPort),
-    void Function(int sendPort)>('RegisterMyCallbackBlocking');
+final registerSendPort = dl.lookupFunction<Void Function(Int64 sendPort),
+    void Function(int sendPort)>('RegisterSendPort');
 
-final executeCallback =
-    dl.lookupFunction<Void Function(IntPtr), void Function(int)>(
-        'ExecuteCallback');
+final sendReply =
+    dl.lookupFunction<Void Function(IntPtr), void Function(int)>('SendReply');
 
 class Work extends Opaque {}

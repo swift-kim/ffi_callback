@@ -30,7 +30,7 @@ void NotifyDart(Dart_Port send_port) {
 }
 
 intptr_t result_ = 0;
-std::condition_variable cv;
+std::condition_variable cv_;
 
 // Do a callback to Dart in a blocking way, being interested in the result.
 intptr_t MyCallbackBlocking() {
@@ -39,7 +39,7 @@ intptr_t MyCallbackBlocking() {
   printf("C   : Waiting for result.\n");
   NotifyDart(my_callback_blocking_send_port_);
   while (result_ == 0) {
-    cv.wait(lock);
+    cv_.wait(lock);
   }
   printf("C   : Received result: %d\n", result_);
   return result_;
@@ -51,8 +51,7 @@ DART_EXPORT FLUTTER_PLUGIN_EXPORT intptr_t InitDartApiDL(void *data) {
   return Dart_InitializeApiDL(data);
 }
 
-DART_EXPORT FLUTTER_PLUGIN_EXPORT void RegisterMyCallbackBlocking(
-    Dart_Port send_port) {
+DART_EXPORT FLUTTER_PLUGIN_EXPORT void RegisterSendPort(Dart_Port send_port) {
   my_callback_blocking_send_port_ = send_port;
 
   // Add a callback to be run by the platform thread when the battery charging
@@ -68,11 +67,11 @@ DART_EXPORT FLUTTER_PLUGIN_EXPORT void RegisterMyCallbackBlocking(
   }
 }
 
-DART_EXPORT FLUTTER_PLUGIN_EXPORT void ExecuteCallback(intptr_t result) {
-  printf("C Da: ExecuteCallback.\n");
+DART_EXPORT FLUTTER_PLUGIN_EXPORT void SendReply(intptr_t result) {
+  printf("C Da: SendReply.\n");
   result_ = result;
-  cv.notify_one();
-  printf("C Da: ExecuteCallback done.\n");
+  cv_.notify_one();
+  printf("C Da: SendReply done.\n");
 }
 
 void FfiCallbackPluginRegisterWithRegistrar(
