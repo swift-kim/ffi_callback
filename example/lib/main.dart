@@ -16,60 +16,52 @@ Future<void> main() async {
     ),
   ));
 
-  print("Dart: Setup.");
+  print('Dart: Setup.');
   final initializeApi = dl.lookupFunction<IntPtr Function(Pointer<Void>),
-      int Function(Pointer<Void>)>("InitDartApiDL");
+      int Function(Pointer<Void>)>('InitDartApiDL');
   initializeApi(NativeApi.initializeApiDLData);
 
   final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
   final int nativePort = interactiveCppRequests.sendPort.nativePort;
-  registerCallback1(nativePort, callback1FP);
-
-  // We need to yield control in order to be able to receive messages.
-  while (callbackResult < 10) {
-    print("Dart: Yielding (able to receive messages on port).");
-    await Future.delayed(Duration(seconds: 1));
-  }
-  print("Dart: Received expected number of callbacks.");
-
-  interactiveCppRequests.close();
-  print("Dart: Done.");
+  registerCallback(nativePort, callbackFP);
 }
 
-int callbackResult = 0;
+bool ongoing = false;
 
-bool flag = false;
+int result = 0;
 
-int callback1(int a) {
-  print("Dart:     callback1($a).");
-  if (!flag) {
-    http.get(Uri.parse('https://www.google.com')).then((value) async {
-      await Future.delayed(Duration(seconds: 5));
-      callbackResult = value.body.length;
-      print("Dart:   Set result to $callbackResult");
+int callback() {
+  if (!ongoing) {
+    print('Sending a request.');
+    http.get(Uri.parse('https://www.google.com')).then((response) {
+      // Adding some additional delay.
+      Future.delayed(Duration(seconds: 2), () {
+        result = response.body.length;
+        print('The result is $result.');
+      });
     });
-    flag = true;
+    ongoing = true;
   }
-  return a + callbackResult;
+  return result;
 }
 
 void requestExecuteCallback(dynamic message) {
   final int work_address = message;
   final work = Pointer<Work>.fromAddress(work_address);
-  print("Dart:   Calling into C to execute callback ($work).");
+  print('Calling into C to execute callback.');
   executeCallback(work);
-  print("Dart:   Done with callback.");
+  print('Done with callback.');
 }
 
-final callback1FP = Pointer.fromFunction<IntPtr Function(IntPtr)>(callback1, 0);
+final callbackFP = Pointer.fromFunction<IntPtr Function()>(callback, 0);
 
 final dl = DynamicLibrary.process();
 
-final registerCallback1 = dl.lookupFunction<
+final registerCallback = dl.lookupFunction<
         Void Function(Int64 sendPort,
-            Pointer<NativeFunction<IntPtr Function(IntPtr)>> functionPointer),
+            Pointer<NativeFunction<IntPtr Function()>> functionPointer),
         void Function(int sendPort,
-            Pointer<NativeFunction<IntPtr Function(IntPtr)>> functionPointer)>(
+            Pointer<NativeFunction<IntPtr Function()>> functionPointer)>(
     'RegisterMyCallbackBlocking');
 
 final executeCallback = dl.lookupFunction<Void Function(Pointer<Work>),
