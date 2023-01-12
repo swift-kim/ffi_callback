@@ -10,6 +10,11 @@ dependencies:
     sdk: flutter
   ffi_callback:
     path: ../
+  http:
+  video_player:
+  video_player_tizen:
 
 flutter:
+  assets:
+    - assets/Butterfly-209.mp4
   uses-material-design: true

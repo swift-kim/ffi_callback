@@ -2,6 +2,9 @@ import 'dart:ffi';
 import 'dart:isolate';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import 'video_player.dart';
 
 Future<void> main() async {
   runApp(MaterialApp(
@@ -9,23 +12,21 @@ Future<void> main() async {
       appBar: AppBar(
         title: const Text('Plugin example app'),
       ),
-      body: Center(),
+      body: Center(child: ButterFlyAssetVideo()),
     ),
   ));
 
   print("Dart: Setup.");
   final initializeApi = dl.lookupFunction<IntPtr Function(Pointer<Void>),
-      int Function(Pointer<Void>)>("NativeInitializeDartApi");
+      int Function(Pointer<Void>)>("InitDartApiDL");
   initializeApi(NativeApi.initializeApiDLData);
 
   final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
   final int nativePort = interactiveCppRequests.sendPort.nativePort;
   registerCallback1(nativePort, callback1FP);
-  print("Dart: Tell C to start worker threads.");
-  startWorkSimulator();
 
   // We need to yield control in order to be able to receive messages.
-  while (numCallbacks1 < 1) {
+  while (callbackResult < 10) {
     print("Dart: Yielding (able to receive messages on port).");
     await Future.delayed(Duration(seconds: 1));
   }
@@ -35,12 +36,21 @@ Future<void> main() async {
   print("Dart: Done.");
 }
 
-int numCallbacks1 = 0;
+int callbackResult = 0;
+
+bool flag = false;
 
 int callback1(int a) {
   print("Dart:     callback1($a).");
-  numCallbacks1++;
-  return a + 3;
+  if (!flag) {
+    http.get(Uri.parse('https://www.google.com')).then((value) async {
+      await Future.delayed(Duration(seconds: 5));
+      callbackResult = value.body.length;
+      print("Dart:   Set result to $callbackResult");
+    });
+    flag = true;
+  }
+  return a + callbackResult;
 }
 
 void requestExecuteCallback(dynamic message) {
@@ -61,9 +71,6 @@ final registerCallback1 = dl.lookupFunction<
         void Function(int sendPort,
             Pointer<NativeFunction<IntPtr Function(IntPtr)>> functionPointer)>(
     'RegisterMyCallbackBlocking');
-
-final startWorkSimulator =
-    dl.lookupFunction<Void Function(), void Function()>('StartWorkSimulator');
 
 final executeCallback = dl.lookupFunction<Void Function(Pointer<Work>),
     void Function(Pointer<Work>)>('ExecuteCallback');
