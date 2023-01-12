@@ -23,48 +23,30 @@ Future<void> main() async {
 
   final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
   final int nativePort = interactiveCppRequests.sendPort.nativePort;
-  registerCallback(nativePort, callbackFP);
-}
-
-bool ongoing = false;
-
-int result = 0;
-
-int callback() {
-  if (!ongoing) {
-    print('Sending a request.');
-    http.get(Uri.parse('https://www.google.com')).then((response) {
-      // Adding some additional delay.
-      Future.delayed(Duration(seconds: 2), () {
-        result = response.body.length;
-        print('The result is $result.');
-      });
-    });
-    ongoing = true;
-  }
-  return result;
+  registerCallback(nativePort);
 }
 
 void requestExecuteCallback(dynamic message) {
-  final int work_address = message;
-  final work = Pointer<Work>.fromAddress(work_address);
   print('Calling into C to execute callback.');
-  executeCallback(work);
-  print('Done with callback.');
-}
+  http.get(Uri.parse('https://www.google.com')).then((response) {
+    // Adding some additional delay.
+    Future.delayed(Duration(seconds: 2), () {
+      int result = response.body.length;
 
-final callbackFP = Pointer.fromFunction<IntPtr Function()>(callback, 0);
+      print('Calling into C to execute callback.');
+      executeCallback(result);
+      print('Done with callback.');
+    });
+  });
+}
 
 final dl = DynamicLibrary.process();
 
-final registerCallback = dl.lookupFunction<
-        Void Function(Int64 sendPort,
-            Pointer<NativeFunction<IntPtr Function()>> functionPointer),
-        void Function(int sendPort,
-            Pointer<NativeFunction<IntPtr Function()>> functionPointer)>(
-    'RegisterMyCallbackBlocking');
+final registerCallback = dl.lookupFunction<Void Function(Int64 sendPort),
+    void Function(int sendPort)>('RegisterMyCallbackBlocking');
 
-final executeCallback = dl.lookupFunction<Void Function(Pointer<Work>),
-    void Function(Pointer<Work>)>('ExecuteCallback');
+final executeCallback =
+    dl.lookupFunction<Void Function(IntPtr), void Function(int)>(
+        'ExecuteCallback');
 
 class Work extends Opaque {}
